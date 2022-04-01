@@ -96,6 +96,7 @@ defmodule ETH.Transaction.Parser do
 
   def parse(
         _transaction = %{
+          chain_id: chain_id,
           nonce: nonce,
           gas_price: gas_price,
           gas_limit: gas_limit,
@@ -110,7 +111,8 @@ defmodule ETH.Transaction.Parser do
       gas_limit: to_buffer(gas_limit),
       to: to_buffer(to),
       value: to_buffer(value),
-      data: to_buffer(data)
+      data: to_buffer(data),
+      chain_id: chain_id
     }
   end
 
@@ -135,6 +137,26 @@ defmodule ETH.Transaction.Parser do
       ) do
     [nonce, gas_price, gas_limit, to, value, data, v, r, s]
     |> Enum.map(fn value -> to_buffer(value) end)
+  end
+
+  def to_list(
+        transaction = %{
+          nonce: nonce,
+          gas_price: gas_price,
+          gas_limit: gas_limit,
+          value: value,
+          data: data,
+          chain_id: chain_id
+        }
+      ) when is_integer(chain_id) do
+    to = Map.get(transaction, :to, "")
+    v = Map.get(transaction, :v, <<28>>)
+    r = Map.get(transaction, :r, "")
+    s = Map.get(transaction, :s, "")
+
+    [nonce, gas_price, gas_limit, to, value, data, v, r, s]
+    |> Enum.map(fn value -> to_buffer(value) end)
+    |> Kernel.++([chain_id])
   end
 
   def to_list(

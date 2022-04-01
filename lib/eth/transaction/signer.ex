@@ -29,7 +29,7 @@ defmodule ETH.Transaction.Signer do
           list = Enum.take(transaction_list, 6)
           v = Enum.at(transaction_list, 6) || <<28>>
           chain_id = get_chain_id(v, Enum.at(transaction_list, 9))
-          if chain_id > 0, do: list ++ [chain_id, 0, 0], else: list
+          if chain_id > 0, do: list ++ [<<chain_id>>, 0, 0], else: list
       end
 
     target_list
@@ -91,13 +91,44 @@ defmodule ETH.Transaction.Signer do
           _data,
           _v,
           _r,
-          _s
+          _s,
+          chain_id
         ],
         <<encoded_private_key::binary-size(64)>>
       )
       when is_list(transaction_list) do
     decoded_private_key = Base.decode16!(encoded_private_key, case: :mixed)
     sign_transaction_list(transaction_list, decoded_private_key)
+  end
+
+  defp sign_transaction_list(
+         transaction_list = [
+           nonce,
+           gas_price,
+           gas_limit,
+           to,
+           value,
+           data,
+           v,
+           _r,
+           _s,
+           chain_id
+         ],
+         <<private_key::binary-size(32)>>
+       ) do
+    message_hash = hash_transaction(transaction_list, false)
+
+    [signature: signature, recovery: recovery] = secp256k1_signature(message_hash, private_key)
+
+    <<sig_r::binary-size(32)>> <> <<sig_s::binary-size(32)>> = signature
+    initial_v = recovery + 27
+
+    sig_v = if chain_id > 0, do: initial_v + (chain_id * 2 + 8), else: initial_v
+
+    # require IEx; IEx.pry
+
+    [nonce, gas_price, gas_limit, to, value, data, sig_v, sig_r, sig_s]
+    |> ExRLP.encode()
   end
 
   defp sign_transaction_list(
