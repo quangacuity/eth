@@ -117,15 +117,14 @@ defmodule ETH.Transaction.Signer do
          <<private_key::binary-size(32)>>
        ) do
     message_hash = hash_transaction(transaction_list, false)
-
     [signature: signature, recovery: recovery] = secp256k1_signature(message_hash, private_key)
 
     <<sig_r::binary-size(32)>> <> <<sig_s::binary-size(32)>> = signature
+    sig_r = sig_r |> :binary.decode_unsigned() |> :binary.encode_unsigned()
+    sig_s = sig_s |> :binary.decode_unsigned() |> :binary.encode_unsigned()
+
     initial_v = recovery + 27
-
     sig_v = if chain_id > 0, do: initial_v + (chain_id * 2 + 8), else: initial_v
-
-    # require IEx; IEx.pry
 
     [nonce, gas_price, gas_limit, to, value, data, sig_v, sig_r, sig_s]
     |> ExRLP.encode()
